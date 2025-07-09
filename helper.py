@@ -2,9 +2,31 @@ from urlextract import URLExtract
 import pandas as pd
 from collections import Counter
 from wordcloud import WordCloud
-
-
+import re
+from collections import Counter
 extract = URLExtract()
+
+def remove_emojis(text):
+    emoji_pattern = re.compile("["
+                               u"\U0001F600-\U0001F64F"  # emoticons
+                               u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+                               u"\U0001F680-\U0001F6FF"  # transport & map symbols
+                               u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                               u"\U00002500-\U00002BEF"  # Chinese/Japanese/Korean characters
+                               u"\U00002702-\U000027B0"
+                               u"\U000024C2-\U0001F251"
+                               u"\U0001F926-\U0001F937"
+                               u"\U00010000-\U0010FFFF"
+                               u"\u2640-\u2642" 
+                               u"\u2600-\u2B55"
+                               u"\u200D"
+                               u"\u23CF"
+                               u"\u23E9"
+                               u"\u231A"
+                               u"\u3030"
+                               u"\uFE0F"
+                               "]+", flags=re.UNICODE)
+    return emoji_pattern.sub(r'', text)
 
 def fetch_stats(selected_user,df):
 
@@ -37,19 +59,30 @@ def most_busy_users(df):
 
 def create_wordcloud(selected_user,df):
 
+    f = open('stop_hinglish.txt', 'r')
+    stop_words = f.read()
+
     if selected_user != 'Overall':
         df = df[df['user'] == selected_user]
 
     temp = df[df['user'] != 'group_notification']
     temp = temp[temp['message'] != '<Media omitted>\n']
 
+    def remove_stop_words(message):
+        y = []
+        for word in message.lower().split():
+            if word not in stop_words:
+                y.append(word)
+        return " ".join(y)
 
     wc = WordCloud(width=500,height=500,min_font_size=10,background_color='white')
+    temp['message'] = temp['message'].apply(remove_stop_words)
     df_wc = wc.generate(temp['message'].str.cat(sep=" "))
     return df_wc
 
-def most_common_words(selected_user,df):
-
+def most_common_words(selected_user, df):
+    f = open('stop_hinglish.txt', 'r')
+    stop_words = f.read()
 
     if selected_user != 'Overall':
         df = df[df['user'] == selected_user]
@@ -60,9 +93,11 @@ def most_common_words(selected_user,df):
     words = []
 
     for message in temp['message']:
+        # Remove emojis before splitting into words
+        message = remove_emojis(message)
         for word in message.lower().split():
+            if word not in stop_words:
                 words.append(word)
 
     most_common_df = pd.DataFrame(Counter(words).most_common(20))
     return most_common_df
-
